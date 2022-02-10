@@ -42,9 +42,26 @@ void BufMgr::advanceClock() {}
 
 void BufMgr::allocBuf(FrameId& frame) {}
 
-void BufMgr::readPage(File& file, const PageId pageNo, Page*& page) {}
+// Rex
+void BufMgr::readPage(File& file, const PageId pageNo, Page*& page) {
 
-void BufMgr::unPinPage(File& file, const PageId pageNo, const bool dirty) {}
+
+}
+
+// Rex
+// Unpins a give page from the buffer pool. Decrease the pin count by one. 
+// If dirty == true, sets the dirty bit. Throws a PAGENOTPINNED exception if the pin count is already 0.
+// Does nothing if the page is not found in the hash table lookup.
+//
+// @param file, a File, 
+// @param pageNo, a pageId 
+// @param dirty, a constant boolean, that represents the 
+// 
+void BufMgr::unPinPage(File& file, const PageId pageNo, const bool dirty) {
+
+
+
+}
 
 void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {}
 
