@@ -181,7 +181,7 @@ class BufMgr {
     if (clockHand == NULL)
       clockHand = 0;
     //modular arithmetic to move around clock
-    clockHand = clockHand % numBufs + 1;
+    clockHand = (clockHand+1) % numBufs;
   }
 
   /**
