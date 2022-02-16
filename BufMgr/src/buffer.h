@@ -177,7 +177,6 @@ class BufMgr {
    * Advance clock to next frame in the buffer pool
    */
   void advanceClock();
-
   /**
    * Allocate a free frame.
    *
@@ -187,7 +186,7 @@ class BufMgr {
    * allocated
    */
   void allocBuf(FrameId& frame);
-
+  
  public:
   /**
    * Actual buffer pool from which frames are allocated

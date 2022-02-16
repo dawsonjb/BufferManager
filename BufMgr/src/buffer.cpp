@@ -73,7 +73,71 @@ namespace badgerdb
       Page readPage = file.readPage(pageNo);
       bufPool[frameNo] = readPage;
       //should catch INVALIDPAGEEXCEPTION (#TODO: Confirm and implement catch)
+void BufMgr::advanceClock() {
 
+    //clockHand is undefined in the beginning
+  if (clockHand == NULL)
+    clockHand = 0;
+    //modular arithmetic to move around clock
+  clockHand = (clockHand+1) % bufMgr.numBufs;
+}
+
+void BufMgr::allocBuf(FrameId& frame) {
+  int count = 0;//counter for amount of frames with > 0 pinCnts
+  for (int i = 0; i < numBufs; i++){
+      if (bufDescTable[i].pinCnt > 0)
+        count +=1; //increment count
+    }
+    if (count == numBufs - 1) {
+      throw BadBufferException(clockHand, bufDescTable[clockHand].dirty,
+      bufDescTable[clockHand].valid, bufDescTable[clockHand].refbit);
+    }
+  //allocate free frame from clock algo
+  while (true){
+    
+    if (bufDescTable[clockHand].refbit == false && bufDescTable[clockHand].pinCnt == 0){
+    // allocate this frame
+      if (bufDescTable[clockHand].valid == true){
+        //remove from hashtable
+        hashTable.remove(bufDescTable[clockHand].file, bufDescTable[clockHand].pageNo);
+      }
+
+      if (bufDescTable[clockHand].dirty == true){
+        //writes page back to disk
+        flushFile(bufDescTable[clockHand].file);
+      }
+
+      frame = &(clockHand);
+      break; //leave while loop
+    }
+
+    else {
+      advanceClock();
+    }
+  }
+}
+void BufMgr::readPage(File &file, const PageId pageNo, Page *&page){
+
+    //check if the page is already in buffer pool by invoking the BufHashTbl::lookup method on the hashtable to get a frame number.
+    //This may throw a HashNotFoundException so be ready to catch it.
+
+    FrameId frameNo; //TODO - Determine what starting value should be. (-1,0,1, NULL).
+
+    try
+    {
+
+      //returns frameNo by reference
+      this->hashTable.lookup(file, pageNo, frameNo);
+    }
+    catch (HashNotFoundException)
+    {
+      //Case 1: hash is not found in the hashTable
+       //  -Call allocBuf() to allocate a buffer frame
+      allocBuf(frameNo);
+            //  -Then, call file.readPage() to read the page from disk to buffer bool frame.
+      Page readPage = file.readPage(pageNo);
+      bufPool[frameNo] = readPage;
+      //should catch INVALIDPAGEEXCEPTION (#TODO: Confirm and implement catch)
       //  -Next, insert the page into the hashTable
       hashTable.insert(file, pageNo, frameNo);
 
@@ -105,8 +169,7 @@ namespace badgerdb
     return;
   }
 
-  void BufMgr::unPinPage(File &file, const PageId pageNo, const bool dirty)
-  {
+  void BufMgr::unPinPage(File &file, const PageId pageNo, const bool dirty) {
 
     FrameId frameNo;
 
