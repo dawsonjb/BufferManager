@@ -365,20 +365,20 @@ namespace badgerdb
     }
   }
 
-    void BufMgr::printSelf(void)
+  void BufMgr::printSelf(void)
+  {
+    int validFrames = 0;
+
+    for (FrameId i = 0; i < numBufs; i++)
     {
-      int validFrames = 0;
+      std::cout << "FrameNo:" << i << " ";
+      bufDescTable[i].Print();
 
-      for (FrameId i = 0; i < numBufs; i++)
-      {
-        std::cout << "FrameNo:" << i << " ";
-        bufDescTable[i].Print();
-
-        if (bufDescTable[i].valid)
-          validFrames++;
-      }
-
-      std::cout << "Total Number of Valid Frames:" << validFrames << "\n";
+      if (bufDescTable[i].valid)
+        validFrames++;
     }
 
-  } // namespace badgerdb
+    std::cout << "Total Number of Valid Frames:" << validFrames << "\n";
+  }
+
+} // namespace badgerdb
