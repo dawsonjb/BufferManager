@@ -38,9 +38,51 @@ BufMgr::BufMgr(std::uint32_t bufs)
   clockHand = bufs - 1;
 }
 
-void BufMgr::advanceClock() {}
+void BufMgr::advanceClock() {
 
-void BufMgr::allocBuf(FrameId& frame) {}
+    //clockHand is undefined in the beginning
+  if (clockHand == NULL)
+    clockHand = 0;
+    //modular arithmetic to move around clock
+  clockHand = (clockHand+1) % bufMgr.numBufs;
+}
+
+void BufMgr::allocBuf(FrameId& frame) {
+  int count = 0;//counter for amount of frames with > 0 pinCnts
+  for (int i = 0; i < numBufs; i++){
+      if (bufDescTable[i].pinCnt > 0)
+        count +=1; //increment count
+    }
+    if (count == numBufs - 1) {
+      throw BadBufferException(clockHand, bufDescTable[clockHand].dirty,
+      bufDescTable[clockHand].valid, bufDescTable[clockHand].refbit);
+    }
+  //allocate free frame from clock algo
+  while (true){
+    
+    if (bufDescTable[clockHand].refbit == false && bufDescTable[clockHand].pinCnt == 0){
+    // allocate this frame
+      if (bufDescTable[clockHand].valid == true){
+        //remove from hashtable
+        hashTable.remove(bufDescTable[clockHand].file, bufDescTable[clockHand].pageNo);
+      }
+
+      if (bufDescTable[clockHand].dirty == true){
+        //writes page back to disk
+        flushFile(bufDescTable[clockHand].file);
+      }
+      
+      //evict page from frame to allocate
+      bufDescTable[clockHand].clear();
+      frame = &(clockHand);
+      break; //leave while loop
+    }
+
+    else {
+      advanceClock();
+    }
+  }
+}
 
 void BufMgr::readPage(File& file, const PageId pageNo, Page*& page) {}
 

@@ -176,14 +176,7 @@ class BufMgr {
   /**
    * Advance clock to next frame in the buffer pool
    */
-  void advanceClock(){
-    //clockHand is undefined in the beginning
-    if (clockHand == NULL)
-      clockHand = 0;
-    //modular arithmetic to move around clock
-    clockHand = (clockHand+1) % numBufs;
-  }
-
+  void advanceClock();
   /**
    * Allocate a free frame.
    *
@@ -192,34 +185,8 @@ class BufMgr {
    * @throws BufferExceededException If no such buffer is found which can be
    * allocated
    */
-  void allocBuf(FrameId& frame){
-    //allocate free frame from clock algo
-    while (true){
-
-      if (bufDescTable[clockHand].refbit == false && bufDescTable[clockHand].pinCnt == 0){
-      // allocate this frame
-        if (bufDescTable[clockHand].valid == true)
-          //remove from hashtable
-          hashTable.remove(bufDescTable[clockHand].file, bufDescTable[clockHand].pageNo);
-
-        if (bufDescTable[clockHand].dirty == true)
-          //writes page back to disk
-          flushFile(bufDescTable[clockHand].file);
-
-        //evict page from frame to allocate
-        bufDescTable[clockHand].clear();
-        break; //leave while loop
-      }
-      else
-        advanceClock();
-
-      if (clockHand == frame)
-        // all frames are being used and can't be allocated
-        throw BadBufferException(clockHand, bufDescTable[clockHand].dirty,
-         bufDescTable[clockHand].valid, bufDescTable[clockHand].refbit);
-    }
-  }
-
+  void allocBuf(FrameId& frame);
+  
  public:
   /**
    * Actual buffer pool from which frames are allocated
