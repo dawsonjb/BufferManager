@@ -10,12 +10,15 @@
 
 #include <iostream>
 #include <memory>
+#include <algorithm>
 
 #include "exceptions/bad_buffer_exception.h"
 #include "exceptions/buffer_exceeded_exception.h"
 #include "exceptions/hash_not_found_exception.h"
 #include "exceptions/page_not_pinned_exception.h"
 #include "exceptions/page_pinned_exception.h"
+#include "exceptions/hash_already_present_exception.h"
+#include "exceptions/hash_table_exception.h"
 
 namespace badgerdb
 {
@@ -193,7 +196,7 @@ void BufMgr::readPage(File &file, const PageId pageNo, Page *&page){
    */
 void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
   // Allocate an empty page in the specified file
-  page = file.allocatePage();
+  *page = file.allocatePage();
 
   // Obtain a buffer pool frame (id passed via FrameId variable)
   FrameId frame;
@@ -203,7 +206,7 @@ void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
   } catch (BadBufferException e) {
     
     // no such buffer is found which can be allocated
-    std::cout << e.message;
+    std::cout << e.message();
     return;
   }
 
@@ -215,12 +218,12 @@ void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
   } catch (HashAlreadyPresentException e) {
     
     // the corresponding page already exists in the hash table
-    std::cout << e.message;
+    std::cout << e.message();
     return;
-  } catch (HashTableException) {
+  } catch (HashTableException e) {
     
     // could not create a new bucket as running of memory
-    std::cout << e.message;
+    std::cout << e.message();
     return;
   }
 
@@ -229,7 +232,7 @@ void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
 
   // return the page number and a pointer to the buffer frame allocated
   page = &(bufPool[frame]);
-  PageNo = &(bufDescTable[frame].pageNo);
+  pageNo = bufDescTable[frame].pageNo;
 
 }
   void BufMgr::flushFile(File &file) {
@@ -313,7 +316,7 @@ void BufMgr::disposePage(File& file, const PageId PageNo) {
   
   // Get the frame id (id passed via FrameId variable)
   FrameId frame;
-  hashTable.lookup(file, pageNo, frame);
+  hashTable.lookup(file, PageNo, frame);
 
   // Check that page to be deleted is allocated a frame within buffer pool
   if(std::find(bufDescTable.begin(), bufDescTable.end(), frame) != bufPool.end()) {
@@ -324,12 +327,13 @@ void BufMgr::disposePage(File& file, const PageId PageNo) {
     // Remove entry from hash table
     // TODO: catch exceptions
     try {
-      hashTable.remove(file, pageNo);
+      hashTable.remove(file, PageNo);
     } 
     catch (HashNotFoundException e) {
       std::cout << e.message();
     }
   }
+}
 
   void BufMgr::printSelf(void) {
     int validFrames = 0;
