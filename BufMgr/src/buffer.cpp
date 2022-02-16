@@ -149,7 +149,74 @@ namespace badgerdb
 
   void BufMgr::allocPage(File &file, PageId &pageNo, Page *&page) {}
 
-  void BufMgr::flushFile(File &file) {}
+void BufMgr::flushFile(File &file)
+  {
+
+    FrameId frameNo;
+
+    //Scan bufTable by iterating through each frame in buffer
+    for (frameNo = 0; numBufs > frameNo; frameNo++)
+    {
+
+      //get the information needed from the bufTable for the current iteration of frameNo
+      BufDesc checkBuf = this->bufDescTable[frameNo];
+      File checkFile = checkBuf.file;
+      int checkPinCount = checkBuf.pinCnt;
+      PageId checkPageNo = checkBuf.pageNo;
+
+      //if the checkFile (from checkBuf) == file (the file parameter), then we have encountered a possible page to flush.
+      if (checkFile == file)
+      {
+
+        //check PagePinnedException (if page is still pinned, throw exception)
+        if (0 < checkPinCount)
+        {
+          //Format: PagePinnedException(const std::string &nameIn, PageId pageNoIn, FrameId frameNoIn);
+          //throws PagePinnedException If any page of the file is pinned in buffer pool
+          throw PagePinnedException(checkFile.filename(), checkPageNo, frameNo);
+        }
+
+        //check BadBufferException (if checkFile is invalid, throw exception)
+        if (checkFile.isValid() == false)
+        {
+          //Format: BadBufferException(FrameId frameNoIn, bool dirtyIn, bool validIn, bool refbitIn);
+          //throws BadBufferException If any frame allocated to the file is found invalid
+          throw BadBufferException(frameNo, checkBuf.dirty, checkFile.isValid(), checkBuf.refbit);
+        }
+
+        //check to see if the page is dirty
+        if (checkBuf.dirty) 
+        {
+
+          //if page is dirty, call file.writePage() to flush the page to disk.
+          Page pageToWrite = this->bufPool[frameNo];
+          checkFile.writePage(pageToWrite);
+
+          //then set the dirty bit for the page to false (0)
+          checkBuf.dirty = false;
+
+          //remove page from the hashTable (regardless if dirty or not)
+          this->hashTable.remove(checkFile, checkPageNo);
+
+          //invoke clear() method of BufDesc for the page frame.
+          this->bufDescTable.clear();
+        }
+        else if (!checkBuf.dirty) //if the page is not dirty, just remove and clear.
+        { 
+
+          //remove page from the hashTable (regardless if dirty or not)
+          this->hashTable.remove(checkFile, checkPageNo);
+
+          //invoke clear() method of BufDesc for the page frame.
+          this->bufDescTable.clear();
+
+        }
+      }
+    }
+
+    //once we iterate through each, return
+    return;
+  }
 
   void BufMgr::disposePage(File &file, const PageId PageNo) {}
 
