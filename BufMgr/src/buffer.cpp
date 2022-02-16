@@ -79,7 +79,7 @@ void BufMgr::advanceClock() {
   if (clockHand == NULL)
     clockHand = 0;
     //modular arithmetic to move around clock
-  clockHand = (clockHand+1) % bufMgr.numBufs;
+  clockHand = (clockHand+1) % numBufs;
 }
 
 void BufMgr::allocBuf(FrameId& frame) {
@@ -107,7 +107,7 @@ void BufMgr::allocBuf(FrameId& frame) {
         flushFile(bufDescTable[clockHand].file);
       }
 
-      frame = &(clockHand);
+      frame = clockHand; //return by reference
       break; //leave while loop
     }
 
@@ -210,8 +210,109 @@ void BufMgr::readPage(File &file, const PageId pageNo, Page *&page){
     return;
   }
 
-  void BufMgr::allocPage(File &file, PageId &pageNo, Page *&page) {}
+  /**
 
+   * Allocates a new, empty page in the file and returns the Page object.
+
+   * The newly allocated page is also assigned a frame in the buffer pool.
+
+   *
+
+   * @param file    File object
+
+   * @param PageNo  Page number. The number assigned to the page in the file is
+
+   * returned via this reference.
+
+   * @param page    Reference to page pointer. The newly allocated in-memory
+
+   * Page object is returned via this reference.
+
+   */
+
+void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
+
+
+
+  // Allocate an empty page in the specified file
+
+  page = file.allocatePage();
+
+
+
+  // Obtain a buffer pool frame (id passed via FrameId variable)
+
+  FrameId frame;
+
+
+
+  try {
+
+    allocBuf(frame);
+
+  } catch (BadBufferException e) {
+
+
+
+    // no such buffer is found which can be allocated
+
+    std::cout << e.message;
+
+    return;
+
+  }
+
+
+
+  // insert entry into hash table
+
+  // TODO: catch exceptions
+
+  try {
+
+    hashTable.insert(file, pageNo, frame);
+
+
+
+  } catch (HashAlreadyPresentException e) {
+
+
+
+    // the corresponding page already exists in the hash table
+
+    std::cout << e.message;
+
+    return;
+
+
+
+  } catch (HashTableException) {
+
+
+
+    // could not create a new bucket as running of memory
+
+    std::cout << e.message;
+
+    return;
+
+
+
+  }
+
+  // invoke Set() on the frame
+
+  bufDescTable[frame].Set(file, pageNo);
+
+
+
+  // return the page number and a pointer to the buffer frame allocated
+
+  page = &(bufPool[frame]);
+
+  PageNo = &(bufDescTable[frame].pageNo);
+
+}
   void BufMgr::flushFile(File &file)
     {
 
@@ -281,7 +382,63 @@ void BufMgr::readPage(File &file, const PageId pageNo, Page *&page){
       return;
   }
 
-  void BufMgr::disposePage(File &file, const PageId PageNo) {}
+  /**
+
+   * Delete page from file and also from buffer pool if present.
+
+   * Since the page is entirely deleted from file, its unnecessary to see if the
+
+   * page is dirty.
+
+   *
+
+   * @param file    File object
+
+   * @param PageNo  Page number
+
+   */
+
+void BufMgr::disposePage(File& file, const PageId PageNo) {
+
+
+  // Get the frame id (id passed via FrameId variable)
+
+  FrameId frame;
+
+  hashTable.lookup(file, pageNo, frame);
+
+
+  // Check that page to be deleted is allocated a frame within buffer pool
+
+  if(std::find(bufDescTable.begin(), bufDescTable.end(), frame) != bufPool.end()) {
+
+   
+
+    // Free the allocated frame
+
+    bufDescTable[frame].clear();
+
+
+
+    // Remove entry from hash table
+
+    // TODO: catch exceptions
+
+    try {
+
+      hashTable.remove(file, pageNo);
+
+    } catch (HashNotFoundException e) {
+
+      std::cout << e.message();
+
+    }
+
+
+
+  }
+
+}
 
   void BufMgr::printSelf(void)
   {
