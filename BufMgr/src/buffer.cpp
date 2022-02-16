@@ -71,9 +71,7 @@ void BufMgr::allocBuf(FrameId& frame) {
         //writes page back to disk
         flushFile(bufDescTable[clockHand].file);
       }
-      
-      //evict page from frame to allocate
-      bufDescTable[clockHand].clear();
+
       frame = &(clockHand);
       break; //leave while loop
     }
