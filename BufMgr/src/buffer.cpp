@@ -47,50 +47,61 @@ namespace badgerdb
     clockHand = bufs - 1;
   }
 
-void BufMgr::advanceClock() {
+  void BufMgr::advanceClock()
+  {
 
     //clockHand is undefined in the beginning
-  if (clockHand == NULL)
-    clockHand = 0;
+    if (clockHand == NULL)
+      clockHand = 0;
     //modular arithmetic to move around clock
-  clockHand = (clockHand+1) % numBufs;
-}
+    clockHand = (clockHand + 1) % numBufs;
+  }
 
-void BufMgr::allocBuf(FrameId& frame) {
-  int count = 0;//counter for amount of frames with > 0 pinCnts
-  for (int i = 0; i < numBufs; i++){
+  void BufMgr::allocBuf(FrameId &frame)
+  {
+    int count = 0; //counter for amount of frames with > 0 pinCnts
+    for (int i = 0; i < numBufs; i++)
+    {
       if (bufDescTable[i].pinCnt > 0)
-        count +=1; //increment count
+        count += 1; //increment count
     }
-    if (count == numBufs - 1) {
+    if (count == numBufs - 1)
+    {
       throw BadBufferException(clockHand, bufDescTable[clockHand].dirty,
-      bufDescTable[clockHand].valid, bufDescTable[clockHand].refbit);
+                               bufDescTable[clockHand].valid, bufDescTable[clockHand].refbit);
     }
-  //allocate free frame from clock algo
-  while (true){
-    
-    if (bufDescTable[clockHand].refbit == false && bufDescTable[clockHand].pinCnt == 0){
-    // allocate this frame
-      if (bufDescTable[clockHand].valid == true){
-        //remove from hashtable
-        hashTable.remove(bufDescTable[clockHand].file, bufDescTable[clockHand].pageNo);
+    //allocate free frame from clock algo
+    while (true)
+    {
+
+      if (bufDescTable[clockHand].refbit == false && bufDescTable[clockHand].pinCnt == 0)
+      {
+        // allocate this frame
+        if (bufDescTable[clockHand].valid == true)
+        {
+          //remove from hashtable
+          hashTable.remove(bufDescTable[clockHand].file, bufDescTable[clockHand].pageNo);
+        }
+
+        if (bufDescTable[clockHand].dirty == true)
+        {
+          //writes page back to disk
+          flushFile(bufDescTable[clockHand].file);
+        }
+
+        frame = clockHand; //return by reference
+        break;             //leave while loop
       }
 
-      if (bufDescTable[clockHand].dirty == true){
-        //writes page back to disk
-        flushFile(bufDescTable[clockHand].file);
+      else
+      {
+        advanceClock();
       }
-
-      frame = clockHand; //return by reference
-      break; //leave while loop
-    }
-
-    else {
-      advanceClock();
     }
   }
-}
-void BufMgr::readPage(File &file, const PageId pageNo, Page *&page){
+
+  void BufMgr::readPage(File &file, const PageId pageNo, Page *&page)
+  {
 
     //check if the page is already in buffer pool by invoking the BufHashTbl::lookup method on the hashtable to get a frame number.
     //This may throw a HashNotFoundException so be ready to catch it.
@@ -99,18 +110,20 @@ void BufMgr::readPage(File &file, const PageId pageNo, Page *&page){
 
     try
     {
-
       //returns frameNo by reference
       this->hashTable.lookup(file, pageNo, frameNo);
     }
     catch (HashNotFoundException)
     {
       //Case 1: hash is not found in the hashTable
-       //  -Call allocBuf() to allocate a buffer frame
+
+      //  -Call allocBuf() to allocate a buffer frame
       allocBuf(frameNo);
-            //  -Then, call file.readPage() to read the page from disk to buffer bool frame.
+
+      //  -Then, call file.readPage() to read the page from disk to buffer bool frame.
       Page readPage = file.readPage(pageNo);
       bufPool[frameNo] = readPage;
+
       //should catch INVALIDPAGEEXCEPTION (#TODO: Confirm and implement catch)
       //  -Next, insert the page into the hashTable
       hashTable.insert(file, pageNo, frameNo);
@@ -143,7 +156,8 @@ void BufMgr::readPage(File &file, const PageId pageNo, Page *&page){
     return;
   }
 
-  void BufMgr::unPinPage(File &file, const PageId pageNo, const bool dirty) {
+  void BufMgr::unPinPage(File &file, const PageId pageNo, const bool dirty)
+  {
 
     FrameId frameNo;
 
@@ -175,14 +189,15 @@ void BufMgr::readPage(File &file, const PageId pageNo, Page *&page){
     { // else, pinCnt < 1 and it cant be decremented. throw PageNotPinnedException
 
       std::string nameIn = file.filename();
-      
+
+
       //Exception format: (const std::string &nameIn, PageId pageNoIn, FrameId frameNoIn);
       throw PageNotPinnedException(nameIn, pageNo, frameNo);
-      
     }
 
     return;
   }
+
 
   /**
    * Allocates a new, empty page in the file and returns the Page object.
@@ -235,74 +250,77 @@ void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
   pageNo = bufDescTable[frame].pageNo;
 
 }
-  void BufMgr::flushFile(File &file) {
 
-      FrameId frameNo;
+   void BufMgr::flushFile(File &file)
+  {
 
-      //Scan bufTable by iterating through each frame in buffer
-      for (frameNo = 0; numBufs > frameNo; frameNo++)
+    FrameId frameNo;
+
+    //Scan bufTable by iterating through each frame in buffer
+    for (frameNo = 0; numBufs > frameNo; frameNo++)
+    {
+
+      //get the information needed from the bufTable for the current iteration of frameNo
+      BufDesc checkBuf = this->bufDescTable[frameNo];
+      File checkFile = checkBuf.file;
+      int checkPinCount = checkBuf.pinCnt;
+      PageId checkPageNo = checkBuf.pageNo;
+
+      //if the checkFile (from checkBuf) == file (the file parameter), then we have encountered a possible page to flush.
+      if (checkFile == file)
       {
 
-        //get the information needed from the bufTable for the current iteration of frameNo
-        BufDesc checkBuf = this->bufDescTable[frameNo];
-        File checkFile = checkBuf.file;
-        int checkPinCount = checkBuf.pinCnt;
-        PageId checkPageNo = checkBuf.pageNo;
+        //check PagePinnedException (if page is still pinned, throw exception)
+        if (0 < checkPinCount)
+        {
+          //Format: PagePinnedException(const std::string &nameIn, PageId pageNoIn, FrameId frameNoIn);
+          //throws PagePinnedException If any page of the file is pinned in buffer pool
+          throw PagePinnedException(checkFile.filename(), checkPageNo, frameNo);
+        }
 
-        //if the checkFile (from checkBuf) == file (the file parameter), then we have encountered a possible page to flush.
-        if (checkFile == file)
+        //check BadBufferException (if checkFile is invalid, throw exception)
+        if (checkFile.isValid() == false)
+        {
+          //Format: BadBufferException(FrameId frameNoIn, bool dirtyIn, bool validIn, bool refbitIn);
+          //throws BadBufferException If any frame allocated to the file is found invalid
+          throw BadBufferException(frameNo, checkBuf.dirty, checkFile.isValid(), checkBuf.refbit);
+        }
+
+        //check to see if the page is dirty
+        if (checkBuf.dirty)
         {
 
-          //check PagePinnedException (if page is still pinned, throw exception)
-          if (0 < checkPinCount)
-          {
-            //Format: PagePinnedException(const std::string &nameIn, PageId pageNoIn, FrameId frameNoIn);
-            //throws PagePinnedException If any page of the file is pinned in buffer pool
-            throw PagePinnedException(checkFile.filename(), checkPageNo, frameNo);
-          }
+          //if page is dirty, call file.writePage() to flush the page to disk.
+          Page pageToWrite = this->bufPool[frameNo];
+          checkFile.writePage(pageToWrite);
 
-          //check BadBufferException (if checkFile is invalid, throw exception)
-          if (checkFile.isValid() == false)
-          {
-            //Format: BadBufferException(FrameId frameNoIn, bool dirtyIn, bool validIn, bool refbitIn);
-            //throws BadBufferException If any frame allocated to the file is found invalid
-            throw BadBufferException(frameNo, checkBuf.dirty, checkFile.isValid(), checkBuf.refbit);
-          }
+          //then set the dirty bit for the page to false (0)
+          checkBuf.dirty = false;
 
-          //check to see if the page is dirty
-          if (checkBuf.dirty) 
-          {
+          //remove page from the hashTable (regardless if dirty or not)
+          this->hashTable.remove(checkFile, checkPageNo);
 
-            //if page is dirty, call file.writePage() to flush the page to disk.
-            Page pageToWrite = this->bufPool[frameNo];
-            checkFile.writePage(pageToWrite);
+          //invoke clear() method of BufDesc for the page frame.
+          //this->bufDescTable.clear();
+          this->bufDescTable[frameNo].clear();
+        }
+        else if (!checkBuf.dirty) //if the page is not dirty, just remove and clear.
+        {
 
-            //then set the dirty bit for the page to false (0)
-            checkBuf.dirty = false;
+          //remove page from the hashTable (regardless if dirty or not)
+          this->hashTable.remove(checkFile, checkPageNo);
 
-            //remove page from the hashTable (regardless if dirty or not)
-            this->hashTable.remove(checkFile, checkPageNo);
-
-            //invoke clear() method of BufDesc for the page frame.
-            this->bufDescTable.clear();
-          }
-          else if (!checkBuf.dirty) //if the page is not dirty, just remove and clear.
-          { 
-
-            //remove page from the hashTable (regardless if dirty or not)
-            this->hashTable.remove(checkFile, checkPageNo);
-
-            //invoke clear() method of BufDesc for the page frame.
-            this->bufDescTable.clear();
-
-          }
+          //invoke clear() method of BufDesc for the page frame.
+          this->bufDescTable[frameNo].clear();
+          //this->bufDescTable.clear();
         }
       }
+    }
 
-      //once we iterate through each, return
-      return;
+    //once we iterate through each, return
+    return;
   }
-
+  
   /**
    * Delete page from file and also from buffer pool if present.
    * Since the page is entirely deleted from file, its unnecessary to see if the
@@ -335,7 +353,9 @@ void BufMgr::disposePage(File& file, const PageId PageNo) {
   }
 }
 
-  void BufMgr::printSelf(void) {
+
+  void BufMgr::printSelf(void)
+  {
     int validFrames = 0;
 
     for (FrameId i = 0; i < numBufs; i++)
