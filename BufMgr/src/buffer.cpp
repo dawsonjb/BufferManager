@@ -1,10 +1,18 @@
 /**
+ * @file buffer.cpp
+ * @author Collin Krause, student id: 9078082915, email: cpkrause2@wisc.edu
+ * @author Dawson Bauer, student id: 9078157287, email: djbauer2@wisc.edu
+ * @author Rex Wasserman, studentid: 9079428372, email: rwasserman2@wisc.edu
+ * @date 2/16/2022
+ * @brief Contains the BufMgr class is the heart of the buffer manager. Contains
+ * all the methods implemented by the students
+ * 
  * @author See Contributors.txt for code contributors and overview of BadgerDB.
- *
  * @section LICENSE
  * Copyright (c) 2012 Database Group, Computer Sciences Department, University
  * of Wisconsin-Madison.
  */
+
 
 #include "buffer.h"
 
@@ -198,17 +206,6 @@ namespace badgerdb
     return;
   }
 
-
-  /**
-   * Allocates a new, empty page in the file and returns the Page object.
-   * The newly allocated page is also assigned a frame in the buffer pool.
-   *
-   * @param file    File object
-   * @param PageNo  Page number. The number assigned to the page in the file is
-   * returned via this reference.
-   * @param page    Reference to page pointer. The newly allocated in-memory
-   * Page object is returned via this reference.
-   */
 void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
   // Allocate an empty page in the specified file
   *page = file.allocatePage();
@@ -321,15 +318,6 @@ void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
     return;
   }
   
-  /**
-   * Delete page from file and also from buffer pool if present.
-   * Since the page is entirely deleted from file, its unnecessary to see if the
-   * page is dirty.
-   *
-   * @param file    File object
-   * @param PageNo  Page number
-   */
-
 void BufMgr::disposePage(File& file, const PageId PageNo) {
   
   // Get the frame id (id passed via FrameId variable)
@@ -337,7 +325,7 @@ void BufMgr::disposePage(File& file, const PageId PageNo) {
   hashTable.lookup(file, PageNo, frame);
 
   // Check that page to be deleted is allocated a frame within buffer pool
-  if(std::find(bufDescTable.begin(), bufDescTable.end(), frame) != bufPool.end()) {
+  if(std::find(bufDescTable.begin(), bufDescTable.end(), frame) != bufDescTable.end()) {
 
    // Free the allocated frame
     bufDescTable[frame].clear();
