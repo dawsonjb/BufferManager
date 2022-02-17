@@ -208,7 +208,8 @@ namespace badgerdb
 
 void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
   // Allocate an empty page in the specified file
-  *page = file.allocatePage();
+  Page allocatedPage = file.allocatePage();
+  PageId allocatedPageNo = allocatedPage.page_number();
 
   // Obtain a buffer pool frame (id passed via FrameId variable)
   FrameId frame;
@@ -226,7 +227,7 @@ void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
   // TODO: catch exceptions
 
   try {
-    hashTable.insert(file, pageNo, frame);
+    hashTable.insert(file, allocatedPageNo, frame);
   } catch (HashAlreadyPresentException e) {
     
     // the corresponding page already exists in the hash table
@@ -240,7 +241,7 @@ void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
   }
 
   // invoke Set() on the frame
-  bufDescTable[frame].Set(file, pageNo);
+  bufDescTable[frame].Set(file, allocatedPageNo);
 
   // return the page number and a pointer to the buffer frame allocated
   page = &(bufPool[frame]);
@@ -324,19 +325,22 @@ void BufMgr::disposePage(File& file, const PageId PageNo) {
   FrameId frame;
   hashTable.lookup(file, PageNo, frame);
 
-  // Check that page to be deleted is allocated a frame within buffer pool
-  if(std::find(bufDescTable.begin(), bufDescTable.end(), frame) != bufDescTable.end()) {
+  for (FrameId i = 0; i < bufDescTable.size(); i++) {
 
-   // Free the allocated frame
-    bufDescTable[frame].clear();
+    // Check that page to be deleted is allocated a frame within buffer pool
+    if (bufDescTable[i].frameNo == frame) {
+      
+      // Free the allocated frame
+      bufDescTable[frame].clear();
 
-    // Remove entry from hash table
-    // TODO: catch exceptions
-    try {
-      hashTable.remove(file, PageNo);
-    } 
-    catch (HashNotFoundException e) {
-      std::cout << e.message();
+      // Remove entry from hash table
+      // TODO: catch exceptions
+      try {
+        hashTable.remove(file, PageNo);
+      } 
+      catch (HashNotFoundException e) {
+        std::cout << e.message();
+      }
     }
   }
 }
