@@ -183,9 +183,20 @@ void test2(File &file1, File &file2, File &file3) {
   // The page number and the value should match
 
   for (i = 0; i < num / 3; i++) {
+
+    std::cout << "Test 2: Step 1" << std::endl;
+
     bufMgr->allocPage(file2, pageno2, page2);
+
+      std::cout << "Test 2: Step 1: Part 1" << std::endl;
+
     sprintf(tmpbuf, "test.2 Page %u %7.1f", pageno2, (float)pageno2);
+
+      std::cout << "Test 2: Step 1: Part 2" << std::endl;
+
     rid2 = page2->insertRecord(tmpbuf);
+
+    std::cout << "Test 2: Step 2" << std::endl;
 
     long int index = random() % num;
     pageno1 = pid[index];
@@ -196,9 +207,13 @@ void test2(File &file1, File &file2, File &file3) {
       PRINT_ERROR("ERROR :: CONTENTS DID NOT MATCH");
     }
 
+    std::cout << "Test 2: Step 3" << std::endl;
+
     bufMgr->allocPage(file3, pageno3, page3);
     sprintf(tmpbuf, "test.3 Page %u %7.1f", pageno3, (float)pageno3);
     rid3 = page3->insertRecord(tmpbuf);
+
+    std::cout << "Test 2: Step 4" << std::endl;
 
     bufMgr->readPage(file2, pageno2, page2);
     sprintf(tmpbuf, "test.2 Page %u %7.1f", pageno2, (float)pageno2);
@@ -206,21 +221,33 @@ void test2(File &file1, File &file2, File &file3) {
       PRINT_ERROR("ERROR :: CONTENTS DID NOT MATCH");
     }
 
+    std::cout << "Test 2: Step 5" << std::endl;
+
     bufMgr->readPage(file3, pageno3, page3);
     sprintf(tmpbuf, "test.3 Page %u %7.1f", pageno3, (float)pageno3);
     if (strncmp(page3->getRecord(rid3).c_str(), tmpbuf, strlen(tmpbuf)) != 0) {
       PRINT_ERROR("ERROR :: CONTENTS DID NOT MATCH");
     }
 
+    std::cout << "Test 2: Step 6" << std::endl;
+
     bufMgr->unPinPage(file1, pageno1, false);
+
+    std::cout << "Test 2: Step 7" << std::endl;
   }
 
   for (i = 0; i < num / 3; i++) {
     bufMgr->unPinPage(file2, i + 1, true);
+    std::cout << "Test 2: Step 8: Part 1 Passed" << std::endl;
     bufMgr->unPinPage(file2, i + 1, true);
+    std::cout << "Test 2: Step 8: Part 2 Passed" << std::endl;
     bufMgr->unPinPage(file3, i + 1, true);
+    std::cout << "Test 2: Step 8: Part 3 Passed" << std::endl;
     bufMgr->unPinPage(file3, i + 1, true);
+    std::cout << "Test 2: Step 8: Part 4 Passed" << std::endl;
   }
+
+   std::cout << "Test 2: Step 8 All Pass" << std::endl;
 
   std::cout << "Test 2 passed"
             << "\n";
