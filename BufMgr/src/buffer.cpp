@@ -67,6 +67,7 @@ namespace badgerdb
 
   void BufMgr::allocBuf(FrameId &frame)
   {
+    FrameId originHand = clockHand;
     int count = 0; //counter for amount of frames with > 0 pinCnts
     for (int i = 0; i < numBufs; i++)
     {
@@ -104,6 +105,8 @@ namespace badgerdb
       else
       {
         advanceClock();
+        if (clockHand == originHand)
+          break;
       }
     }
   }
@@ -121,7 +124,7 @@ namespace badgerdb
       //returns frameNo by reference
       this->hashTable.lookup(file, pageNo, frameNo);
     }
-    catch (HashNotFoundException)
+    catch (HashNotFoundException e)
     {
       //Case 1: hash is not found in the hashTable
 
@@ -153,9 +156,11 @@ namespace badgerdb
 
     //set the appropraiate refbit
     bufDescTable[frameNo].refbit = true; //set to refbit to true/1
+    
+    int ONE = 1;
 
     //increment the pinCnt for the page
-    (bufDescTable[frameNo].pinCnt)++;
+    bufDescTable[frameNo].pinCnt = bufDescTable[frameNo].pinCnt + ONE;
 
     //return a pointer to the frame containing the page via the page parameter
     // to do so, set page = the address of bufPool[#]
@@ -171,7 +176,7 @@ namespace badgerdb
 
     try
     {
-      hashTable.lookup(file, pageNo, frameNo);
+      this->hashTable.lookup(file, pageNo, frameNo);
     }
     catch (HashNotFoundException)
     {
@@ -184,14 +189,14 @@ namespace badgerdb
     //if dirty is true, sets the dirty bit to true
     if (dirty)
     {
-      bufDescTable[frameNo].dirty = true;
+      this->bufDescTable[frameNo].dirty = true;
     }
 
     //pinCnt logic
-    if (bufDescTable[frameNo].pinCnt > 0)
+    if (this->bufDescTable[frameNo].pinCnt > 0)
     {
       //if the pinCnt is larger than 0, then decrement pinCnt by 1
-      bufDescTable[frameNo].pinCnt = bufDescTable[frameNo].pinCnt - 1;
+      this->bufDescTable[frameNo].pinCnt = this->bufDescTable[frameNo].pinCnt - 1;
     }
     else
     { // else, pinCnt < 1 and it cant be decremented. throw PageNotPinnedException
@@ -215,6 +220,7 @@ void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
   FrameId frame;
 
   try {
+    std::cout << "allocBuff" << std::endl;
     allocBuf(frame);
   } catch (BadBufferException e) {
     
@@ -223,10 +229,13 @@ void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
     return;
   }
 
+  std::cout << "allocBuff exit " << std::endl;
+
   // insert entry into hash table
   // TODO: catch exceptions
 
   try {
+    std::cout << "insert " << std::endl;
     hashTable.insert(file, allocatedPageNo, frame);
   } catch (HashAlreadyPresentException e) {
     
@@ -240,8 +249,12 @@ void BufMgr::allocPage(File& file, PageId& pageNo, Page*& page) {
     return;
   }
 
+  std::cout << "exit insert " << std::endl;
+
   // invoke Set() on the frame
   bufDescTable[frame].Set(file, allocatedPageNo);
+
+  std::cout << "sets " << std::endl;
 
   // return the page number and a pointer to the buffer frame allocated
   page = &(bufPool[frame]);
